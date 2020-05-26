@@ -136,24 +136,48 @@ module vga_test
     // States
     localparam MAIN_SCREEN          = 0;
     localparam ACTION_PHASE         = 1; // there is only FIGHT choice
-    localparam EVADE_PHASE          = 2; // evade bullet for 5 secs
-    localparam SKILL_CHECK_PHASE    = 3; // press space, more accurate = more damage
-    localparam SELECT_MONSTER_PHASE = 4; // select monster to attack
+    localparam SKILL_CHECK_PHASE    = 2; // press space, more accurate = more damage
+    localparam SELECT_MONSTER_PHASE = 3; // select monster to attack
+    localparam EVADE_PHASE          = 4; // evade bullet for 5 secs
     
     localparam GAME_END_VICTORY     = 6; // player wins
-    localparam GAME_END_DEFEAT      = 7; // player dies
+    localparam GAME_END_DEFEATED    = 7; // player dies
+    // others
+    localparam MAX_DAMAGE = 80;
+    localparam BULLET_DAMAGE = 40;
+    // colors
+    localparam RED = 12'hF00;
+    localparam GREEN = 12'h0F0;
+    localparam BLUE = 12'h00F;
+    localparam CYAN = 12'h0FF;
+    localparam MAGENTA = 12'hF0F;
+    localparam YELLOW = 12'hFF0;
+    localparam BLACK = 12'h000;
+    localparam WHITE = 12'hFFF;
     //------------------------------------------------
     
-    reg [2:0] state = 2;
-    reg [9:0] cx = WIDTH/2;
-    reg [9:0] cy = HEIGHT/2;
+    reg [2:0] state = 0;
+    reg [9:0] cx = 320;
+    reg [9:0] cy = 140;
+    reg [9:0] player_hp = 200;
+    reg [9:0] attack_damage = 80;
     
-    //monster regs
-    reg [9:0] m1_x = 240, m1_y = 160;
-    reg [9:0] m2_x = 400, m2_y = 250;
-    reg [9:0] m1_vx = 0, m1_vy = 2;
+    // monster regs
+    reg [9:0] m1_x = 240, m1_y = 60;
+    reg [9:0] m2_x = 400, m2_y = 150;
+    reg [9:0] m1_vy = 2;
     reg [9:0] m2_vx = 2, m2_vy = 2;
+    reg [9:0] m1_hp = 200, m2_hp = 200;
     reg draw_m1 = 1, draw_m2 = 1;
+    reg m1_hit = 0, m2_hit = 0;
+    reg selected_monster = 0;
+    
+    // skill check regs
+    reg [9:0] target_bar_x = 450, target_bar_y = 250; // point at top-left corner
+    reg [9:0] moving_bar_x = 0, moving_bar_y = 280;
+    reg [3:0] moving_bar_vx = 10;
+    wire [9:0] damage_penalty;
+    absolute_value skill_check_error(moving_bar_x,target_bar_x,damage_penalty,clk);
     
 	// register for Basys 3 12-bit RGB DAC 
 	reg [11:0] rgb_reg;
@@ -166,49 +190,123 @@ module vga_test
 	// instantiate vga_sync
 	vga_sync vga_sync_unit (.clk(clk), .reset(reset), .hsync(hsync), .vsync(vsync), .video_on(video_on), .p_tick(p_tick), .x(x), .y(y));
 
-    // for actions only !!! --> put other logics at vsync
+    // for actions only !!! --> put movement logics at vsync
 	always @(posedge clk) begin
 	    case(state)
-	       EVADE_PHASE:
+	       MAIN_SCREEN: begin
+	           if (action == SPACE) begin
+	               state = ACTION_PHASE;
+	           end
+	       end
+	       
+	       ACTION_PHASE: begin
+	           if (action == SPACE) state = SKILL_CHECK_PHASE;
+	       end
+	       
+	       SKILL_CHECK_PHASE: 
 	       begin
+	        if (action == SPACE) begin
+	           if ( damage_penalty < MAX_DAMAGE )
+	               attack_damage = MAX_DAMAGE - damage_penalty;
+	           else
+	               attack_damage = 0;
+	           state = SELECT_MONSTER_PHASE;
+	        end
+	       end
+	       
+	       SELECT_MONSTER_PHASE: begin
+	           if (action == LEFT && m1_hp > 0) selected_monster = 0;
+	           if (action == RIGHT && m2_hp > 0) selected_monster = 1;
+	           if (action == SPACE) begin
+	               if (selected_monster == 0) begin
+	                   if(m1_hp > attack_damage) m1_hp = m1_hp - attack_damage;
+	                   else m1_hp = 0;
+	               end
+	               if (selected_monster == 1) begin
+	                   if(m2_hp > attack_damage) m2_hp = m2_hp - attack_damage;
+	                   else m2_hp = 0;
+	               end
+	               if( m1_hp == 0 && m2_hp == 0) state = GAME_END_VICTORY; // all monster died
+	               else begin
+	                   draw_m1 = 1; draw_m2 = 1;
+	                   state = EVADE_PHASE;
+	               end
+	           end
+	       end
+	       
+	       EVADE_PHASE: 
+	       begin
+	           if (player_hp == 0) state = GAME_END_DEFEATED;
 	           if (action == UP && cy > 140 + RADIUS + 3) cy = cy - 3; //W
 	           if (action == LEFT && cx > 220 + RADIUS + 3) cx = cx - 3; //A
 	           if (action == DOWN && cy < 340 - RADIUS - 3) cy = cy + 3; //S
 	           if (action == RIGHT && cx < 420 - RADIUS - 3) cx = cx + 3; //D
+	           if (action == SPACE) state = ACTION_PHASE; // This should be auto after 5 secs, not pressing space
+	           if (m1_hit == 1) begin
+	               draw_m1 = 0;
+	           end
+	           if (m2_hit == 1) begin
+	               draw_m2 = 0;
+	           end
+	           
+	       end
+	       
+	       GAME_END_DEFEATED: begin
+	           if (action == SPACE) begin
+	           end
 	       end
 	    endcase
 	end
 	
 	// for game rendering
-	always @(posedge p_tick) begin   
+	always @(posedge p_tick) begin
+	    // Default Background
+	    rgb_reg = BLACK;
+	    // to render objects override background color
+	    
+	    // HP always show
+	    if ( y >= 315 && y <= 335 && x <= m1_hp )
+	       rgb_reg = GREEN;
+	    if ( y >= 340 && y <= 360 && x <= m2_hp )
+	       rgb_reg = CYAN;
+	    if ( y >= 365 && y <= 385 && x <= player_hp )
+	       rgb_reg = RED;
+	    
 	    case(state)
 	       MAIN_SCREEN:
 	           begin
+	               rgb_reg = WHITE;
 	           end
 	       ACTION_PHASE:
 	           begin
 	           end
 	       EVADE_PHASE:
 	           begin
-	           // Default Background
-	           rgb_reg = 12'h000;
-	           // to render objects override background color
 	           // Player
 	           if ( (x - cx)**2 + (y - cy)**2 <= RADIUS**2 )
-	               rgb_reg = 12'hF00;
+	               rgb_reg = RED;
 	           // Playbox
-	           if ( (x == 220 || x == 420) && ( y >= 140 && y <= 340 ) )
-	               rgb_reg = 12'hFFF;
-	           if ( (y == 140 || y == 340) && ( x >= 220 && x <= 420 ) )
-	               rgb_reg = 12'hFFF;
+	           if ( (x == 220 || x == 420) && ( y >= 40 && y <= 240 ) )
+	               rgb_reg = WHITE;
+	           if ( (y == 40 || y == 240) && ( x >= 220 && x <= 420 ) )
+	               rgb_reg = WHITE;
 	           // monster 1 bullet (square shape)
 	           if ( draw_m1 == 1 &&
-	                m1_x >= x - 3 && m1_x <= x + 3 && 
-	                m1_y >= y - 3 && m1_y <= y + 3 )
-	               rgb_reg = 12'h8F0;
+	                x >= m1_x - 3 && x <= m1_x + 3 && 
+	                y >= m1_y - 3 && y <= m1_y + 3 )
+	               rgb_reg = GREEN;
 	           // monster 2 bullet (circle shape)
 	           if ( draw_m2 == 1 && (x - m2_x)**2 + (y - m2_y)**2 <= 4**2 )
-	               rgb_reg = 12'h8F0;
+	               rgb_reg = CYAN;
+	           end
+	       SKILL_CHECK_PHASE:
+	           begin
+	           if ( x >= target_bar_x && x <= target_bar_x + 5 &&
+	                y >= target_bar_y && y <= target_bar_y + 30 )
+	                rgb_reg = YELLOW;
+	           if ( x >= moving_bar_x && x <= moving_bar_x + 10 &&
+	                y >= moving_bar_y && y <= moving_bar_y + 30 )
+	                rgb_reg = WHITE;
 	           end
 	    endcase
 	   
@@ -220,25 +318,34 @@ module vga_test
 	       EVADE_PHASE:
 	           begin
 	           // monster 1 movement
-	           if (m1_y >= 340 - 3 || m1_y <= 140 + 3) m1_vy = -m1_vy;
+	           if (m1_y >= 240 - 3 || m1_y <= 40 + 3) m1_vy = -m1_vy;
 	           m1_y = m1_y + m1_vy;
 	           // monster 2 movement
 	           if (m2_x >= 420 - 4 || m2_x <= 220 + 4) m2_vx = -m2_vx;
-	           if (m2_y >= 340 - 4 || m2_y <= 140 + 4) m2_vy = -m2_vy;
+	           if (m2_y >= 240 - 4 || m2_y <= 40 + 4) m2_vy = -m2_vy;
 	           m2_x = m2_x + m2_vx;
 	           m2_y = m2_y + m2_vy;
 	           // check for collision
 	           // collide with square bullet
-	           if ( (cx - m1_x)**2 + (cy - m1_y)**2 < (RADIUS + 3)**2 ) begin
-	               draw_m1 = 0;
-	               // damage to player
+	           if ( draw_m1 == 1 && (cx - m1_x)**2 + (cy - m1_y)**2 < (RADIUS + 3)**2 ) begin
+	               m1_hit = 1;
+	               if (player_hp > BULLET_DAMAGE) player_hp = player_hp - BULLET_DAMAGE;
+	               else player_hp = 0;
 	               end
 	           // collide with circle bullet
-	           if ( (cx - m2_x)**2 + (cy - m2_y)**2 < (RADIUS + 4)**2 ) begin
-	               draw_m2 = 0;
-	               // damage to player
+	           if ( draw_m2 == 1 && (cx - m2_x)**2 + (cy - m2_y)**2 < (RADIUS + 4)**2 ) begin
+	               m2_hit = 1;
+	               if (player_hp > BULLET_DAMAGE) player_hp = player_hp - BULLET_DAMAGE;
+	               else player_hp = 0;
 	               end
+	           if (draw_m1 == 0) m1_hit = 0;
+	           if (draw_m2 == 0) m2_hit = 0;
 	           end
+	       SKILL_CHECK_PHASE:
+	       begin
+	           if ( moving_bar_x >= 630 ) moving_bar_x = 0;
+	           moving_bar_x = moving_bar_x + moving_bar_vx;
+	       end
 	   endcase
 	   
 	end
