@@ -94,6 +94,16 @@ module uart_echo (/*AUTOARG*/
    // and send it back as the transmit byte, signal transmit and pop the byte from
    // the receive FIFO.
    //
+   
+   // Local PARAMS
+   // Action 0 to 7
+   localparam NONE  = 0;
+   localparam UP    = 1;
+   localparam LEFT  = 2;
+   localparam DOWN  = 3;
+   localparam RIGHT = 4;
+   localparam SPACE = 5;
+   
    always @(posedge CLK)
      if (RESET) begin
         tx_byte <= 8'h00;
@@ -105,19 +115,23 @@ module uart_echo (/*AUTOARG*/
            tx_byte <= 0;
            if(rx_byte == 119) begin // w
                tx_byte <= rx_byte - 32; //W
-               action = 1; //up
+               action = UP; //up
            end
            if(rx_byte == 97) begin // a
                tx_byte <= rx_byte - 32; //W
-               action = 2; //left
+               action = LEFT; //left
            end
            if(rx_byte == 115) begin // s
                tx_byte <= rx_byte - 32; //S
-               action = 3; //down
+               action = DOWN; //down
            end
            if(rx_byte == 100) begin // d
                tx_byte <= rx_byte - 32; //D
-               action = 4; //right
+               action = RIGHT; //right
+           end
+           if(rx_byte == 32) begin //space
+               tx_byte <= 32; //space
+               action = SPACE; //space
            end
            transmit <= 1'b1;
            rx_fifo_pop <= 1'b1;
@@ -125,7 +139,7 @@ module uart_echo (/*AUTOARG*/
            tx_byte <= 8'h00;
            transmit <= 1'b0;
            rx_fifo_pop <= 1'b0;
-           action = 0; //no action state
+           action = NONE; //no action state
         end
      end // else: !if(RESET)
 

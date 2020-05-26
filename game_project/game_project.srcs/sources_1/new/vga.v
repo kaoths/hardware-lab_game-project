@@ -125,7 +125,26 @@ module vga_test
 	parameter WIDTH = 640;
 	parameter HEIGHT = 480;
 	parameter RADIUS = 10;
+	
+    // Local PARAMS or Static VAR (Use UPPER_SNAKE_CASE)
+    // Actions
+    localparam UP    = 1;
+    localparam LEFT  = 2;
+    localparam DOWN  = 3;
+    localparam RIGHT = 4;
+    localparam SPACE = 5;
+    // States
+    localparam MAIN_SCREEN          = 0;
+    localparam ACTION_PHASE         = 1; // there is only FIGHT choice
+    localparam EVADE_PHASE          = 2; // evade bullet for 5 secs
+    localparam SKILL_CHECK_PHASE    = 3; // press space, more accurate = more damage
+    localparam SELECT_MONSTER_PHASE = 4; // select monster to attack
     
+    localparam GAME_END_VICTORY     = 6; // player wins
+    localparam GAME_END_DEFEAT      = 7; // player dies
+    //------------------------------------------------
+    
+    reg [2:0] state = 2;
     reg [9:0] cx = WIDTH/2;
     reg [9:0] cy = HEIGHT/2;
     reg [9:0] m1_x = 240, m1_y = 160;
@@ -143,30 +162,54 @@ module vga_test
 	// instantiate vga_sync
 	vga_sync vga_sync_unit (.clk(clk), .reset(reset), .hsync(hsync), .vsync(vsync), .video_on(video_on), .p_tick(p_tick), .x(x), .y(y));
 
+    // for actions only
 	always @(posedge clk) begin
-	    if (action == 1 && cy > 140 + RADIUS + 3) cy = cy - 3; //W
-	    if (action == 2 && cx > 220 + RADIUS + 3) cx = cx - 3; //A
-	    if (action == 3 && cy < 340 - RADIUS - 3) cy = cy + 3; //S
-	    if (action == 4 && cx < 420 - RADIUS - 3) cx = cx + 3; //D
+	    case(state)
+	       EVADE_PHASE:
+	       begin
+	           if (action == UP && cy > 140 + RADIUS + 3) cy = cy - 3; //W
+	           if (action == LEFT && cx > 220 + RADIUS + 3) cx = cx - 3; //A
+	           if (action == DOWN && cy < 340 - RADIUS - 3) cy = cy + 3; //S
+	           if (action == RIGHT && cx < 420 - RADIUS - 3) cx = cx + 3; //D
+	       end
+	    endcase
 	end
+	
+	// for game rendering
 	always @(posedge p_tick) begin
-	    // Player & Background
-	    if ( (x - cx)**2 + (y - cy)**2 <= RADIUS**2 )
-	       rgb_reg = 12'hFFF;
-	    else
-	       rgb_reg = 12'h000;
-	    // Playbox
-	    if ( (x == 220 || x == 420) && ( y >= 140 && y <= 340 ) )
-	       rgb_reg = 12'hFFF;
-	    if ( (y == 140 || y == 340) && ( x >= 220 && x <= 420 ) )
-	       rgb_reg = 12'hFFF;
-	    // monster 1
-	    if ( m1_x >= x - 3 && m1_x <= x + 3 && m1_y >= y - 3 && m1_y <= y + 3 )
-	       rgb_reg = 12'h8F0;
-	    // monster 2
-	    if ( (x - m2_x)**2 + (y - m2_y)**2 <= 4**2 )
-	       rgb_reg = 12'h8F0;
+	    // Default Background
+	    rgb_reg = 12'h000;
+	    // to render objects we override background color
+	    
+	    case(state)
+	       MAIN_SCREEN:
+	           begin
+	           end
+	       ACTION_PHASE:
+	           begin
+	           end
+	       EVADE_PHASE:
+	           begin
+	           // Player
+	           if ( (x - cx)**2 + (y - cy)**2 <= RADIUS**2 )
+	               rgb_reg = 12'hF00;
+	           // Playbox
+	           if ( (x == 220 || x == 420) && ( y >= 140 && y <= 340 ) )
+	               rgb_reg = 12'hFFF;
+	           if ( (y == 140 || y == 340) && ( x >= 220 && x <= 420 ) )
+	               rgb_reg = 12'hFFF;
+	           // monster 1 bullet (square shape)
+	           if ( m1_x >= x - 3 && m1_x <= x + 3 && m1_y >= y - 3 && m1_y <= y + 3 )
+	               rgb_reg = 12'h8F0;
+	           // monster 2 bullet (circle shape)
+	           if ( (x - m2_x)**2 + (y - m2_y)**2 <= 4**2 )
+	               rgb_reg = 12'h8F0;
+	           end
+	    endcase
+	   
 	end
+	
+	// for game updating
 	always @(posedge vsync)
 	begin
 	   // monster 1 movement
