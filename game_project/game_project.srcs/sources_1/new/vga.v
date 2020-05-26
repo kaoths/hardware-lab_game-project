@@ -147,11 +147,15 @@ module vga_test
     reg [2:0] state = 2;
     reg [9:0] cx = WIDTH/2;
     reg [9:0] cy = HEIGHT/2;
+    
+    //monster regs
     reg [9:0] m1_x = 240, m1_y = 160;
     reg [9:0] m2_x = 400, m2_y = 250;
     reg [9:0] m1_vx = 0, m1_vy = 2;
     reg [9:0] m2_vx = 2, m2_vy = 2;
-	// register for Basys 2 8-bit RGB DAC 
+    reg draw_m1 = 1, draw_m2 = 1;
+    
+	// register for Basys 3 12-bit RGB DAC 
 	reg [11:0] rgb_reg;
 	reg reset = 0;
 	wire [9:0] x, y;
@@ -162,7 +166,7 @@ module vga_test
 	// instantiate vga_sync
 	vga_sync vga_sync_unit (.clk(clk), .reset(reset), .hsync(hsync), .vsync(vsync), .video_on(video_on), .p_tick(p_tick), .x(x), .y(y));
 
-    // for actions only
+    // for actions only !!! --> put other logics at vsync
 	always @(posedge clk) begin
 	    case(state)
 	       EVADE_PHASE:
@@ -176,11 +180,7 @@ module vga_test
 	end
 	
 	// for game rendering
-	always @(posedge p_tick) begin
-	    // Default Background
-	    rgb_reg = 12'h000;
-	    // to render objects we override background color
-	    
+	always @(posedge p_tick) begin   
 	    case(state)
 	       MAIN_SCREEN:
 	           begin
@@ -190,6 +190,9 @@ module vga_test
 	           end
 	       EVADE_PHASE:
 	           begin
+	           // Default Background
+	           rgb_reg = 12'h000;
+	           // to render objects override background color
 	           // Player
 	           if ( (x - cx)**2 + (y - cy)**2 <= RADIUS**2 )
 	               rgb_reg = 12'hF00;
@@ -199,28 +202,45 @@ module vga_test
 	           if ( (y == 140 || y == 340) && ( x >= 220 && x <= 420 ) )
 	               rgb_reg = 12'hFFF;
 	           // monster 1 bullet (square shape)
-	           if ( m1_x >= x - 3 && m1_x <= x + 3 && m1_y >= y - 3 && m1_y <= y + 3 )
+	           if ( draw_m1 == 1 &&
+	                m1_x >= x - 3 && m1_x <= x + 3 && 
+	                m1_y >= y - 3 && m1_y <= y + 3 )
 	               rgb_reg = 12'h8F0;
 	           // monster 2 bullet (circle shape)
-	           if ( (x - m2_x)**2 + (y - m2_y)**2 <= 4**2 )
+	           if ( draw_m2 == 1 && (x - m2_x)**2 + (y - m2_y)**2 <= 4**2 )
 	               rgb_reg = 12'h8F0;
 	           end
 	    endcase
 	   
 	end
 	
-	// for game updating
-	always @(posedge vsync)
-	begin
-	   // monster 1 movement
-	   if (m1_y >= 340 - 3 || m1_y <= 140 + 3)
-	       m1_vy = -m1_vy;
-	   m1_y = m1_y + m1_vy;
-	   // monster 2 movement
-	   if (m2_x >= 420 - 4 || m2_x <= 220 + 4) m2_vx = -m2_vx;
-	   if (m2_y >= 340 - 4 || m2_y <= 140 + 4) m2_vy = -m2_vy;
-	   m2_x = m2_x + m2_vx;
-	   m2_y = m2_y + m2_vy;
+	// for game updating, logics here
+	always @(posedge vsync) begin
+	   case(state)
+	       EVADE_PHASE:
+	           begin
+	           // monster 1 movement
+	           if (m1_y >= 340 - 3 || m1_y <= 140 + 3) m1_vy = -m1_vy;
+	           m1_y = m1_y + m1_vy;
+	           // monster 2 movement
+	           if (m2_x >= 420 - 4 || m2_x <= 220 + 4) m2_vx = -m2_vx;
+	           if (m2_y >= 340 - 4 || m2_y <= 140 + 4) m2_vy = -m2_vy;
+	           m2_x = m2_x + m2_vx;
+	           m2_y = m2_y + m2_vy;
+	           // check for collision
+	           // collide with square bullet
+	           if ( (cx - m1_x)**2 + (cy - m1_y)**2 < (RADIUS + 3)**2 ) begin
+	               draw_m1 = 0;
+	               // damage to player
+	               end
+	           // collide with circle bullet
+	           if ( (cx - m2_x)**2 + (cy - m2_y)**2 < (RADIUS + 4)**2 ) begin
+	               draw_m2 = 0;
+	               // damage to player
+	               end
+	           end
+	   endcase
+	   
 	end
 	assign rgb = (video_on) ? rgb_reg : 12'b0;
 endmodule
