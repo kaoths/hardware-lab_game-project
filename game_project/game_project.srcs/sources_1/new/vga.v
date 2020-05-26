@@ -128,6 +128,10 @@ module vga_test
     
     reg [9:0] cx = WIDTH/2;
     reg [9:0] cy = HEIGHT/2;
+    reg [9:0] m1_x = 240, m1_y = 160;
+    reg [9:0] m2_x = 400, m2_y = 250;
+    reg [9:0] m1_vx = 0, m1_vy = 2;
+    reg [9:0] m2_vx = 2, m2_vy = 2;
 	// register for Basys 2 8-bit RGB DAC 
 	reg [11:0] rgb_reg;
 	reg reset = 0;
@@ -140,16 +144,40 @@ module vga_test
 	vga_sync vga_sync_unit (.clk(clk), .reset(reset), .hsync(hsync), .vsync(vsync), .video_on(video_on), .p_tick(p_tick), .x(x), .y(y));
 
 	always @(posedge clk) begin
-	    if (action == 1) cy = cy - 20; //W
-	    if (action == 2) cx = cx - 20; //A
-	    if (action == 3) cy = cy + 20; //S
-	    if (action == 4) cx = cx + 20; //D
+	    if (action == 1 && cy > 140 + RADIUS + 3) cy = cy - 3; //W
+	    if (action == 2 && cx > 220 + RADIUS + 3) cx = cx - 3; //A
+	    if (action == 3 && cy < 340 - RADIUS - 3) cy = cy + 3; //S
+	    if (action == 4 && cx < 420 - RADIUS - 3) cx = cx + 3; //D
 	end
 	always @(posedge p_tick) begin
-	    if( (x - cx)**2 + (y - cy)**2 <= RADIUS**2 )
-	       rgb_reg = 12'h000;
-	    else
+	    // Player & Background
+	    if ( (x - cx)**2 + (y - cy)**2 <= RADIUS**2 )
 	       rgb_reg = 12'hFFF;
+	    else
+	       rgb_reg = 12'h000;
+	    // Playbox
+	    if ( (x == 220 || x == 420) && ( y >= 140 && y <= 340 ) )
+	       rgb_reg = 12'hFFF;
+	    if ( (y == 140 || y == 340) && ( x >= 220 && x <= 420 ) )
+	       rgb_reg = 12'hFFF;
+	    // monster 1
+	    if ( m1_x >= x - 3 && m1_x <= x + 3 && m1_y >= y - 3 && m1_y <= y + 3 )
+	       rgb_reg = 12'h8F0;
+	    // monster 2
+	    if ( (x - m2_x)**2 + (y - m2_y)**2 <= 4**2 )
+	       rgb_reg = 12'h8F0;
+	end
+	always @(posedge vsync)
+	begin
+	   // monster 1 movement
+	   if (m1_y >= 340 - 3 || m1_y <= 140 + 3)
+	       m1_vy = -m1_vy;
+	   m1_y = m1_y + m1_vy;
+	   // monster 2 movement
+	   if (m2_x >= 420 - 4 || m2_x <= 220 + 4) m2_vx = -m2_vx;
+	   if (m2_y >= 340 - 4 || m2_y <= 140 + 4) m2_vy = -m2_vy;
+	   m2_x = m2_x + m2_vx;
+	   m2_y = m2_y + m2_vy;
 	end
 	assign rgb = (video_on) ? rgb_reg : 12'b0;
 endmodule
