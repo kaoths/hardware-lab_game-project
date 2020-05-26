@@ -23,7 +23,7 @@ module system(
     input wire RsRx,
     output wire [3:0]vgaRed, vgaGreen, vgaBlue,
     output wire Hsync, Vsync,
-    input reset, //btnC
+    input reset,
     input clk
     );
 wire [3:0] action;
@@ -43,11 +43,5 @@ uart_echo uartEcho (/*AUTOARG*/
    TX, action,
    // Inputs
    clk, reset, RsRx
-   ) ;
-//top_uart u(
-//    .RsTx(RsTx),
-//    .RsRx(RsRx),
-//    .led(led),
-//    .clk(clk)
-//    );
+   );
 endmodule
