@@ -121,6 +121,14 @@ module vga_test
 		output wire hsync, vsync,
 		output wire [11:0] rgb
 	);
+	
+	wire[23:0] tclk;
+    assign tclk[0] = clk;
+    //Clock Divide
+    genvar c;
+    generate for(c=0; c<23; c=c+1) begin
+        clkDiv fdiv(tclk[c+1], tclk[c]);
+    end endgenerate
 
 	parameter WIDTH = 640;
 	parameter HEIGHT = 480;
@@ -237,11 +245,12 @@ module vga_test
 	       EVADE_PHASE: 
 	       begin
 	           if (player_hp == 0) state = GAME_END_DEFEATED;
-	           if (action == UP && cy > 140 + RADIUS + 3) cy = cy - 3; //W
+	           if (action == UP && cy > 40 + RADIUS + 3) cy = cy - 3; //W
 	           if (action == LEFT && cx > 220 + RADIUS + 3) cx = cx - 3; //A
-	           if (action == DOWN && cy < 340 - RADIUS - 3) cy = cy + 3; //S
+	           if (action == DOWN && cy < 240 - RADIUS - 3) cy = cy + 3; //S
 	           if (action == RIGHT && cx < 420 - RADIUS - 3) cx = cx + 3; //D
-	           if (action == SPACE) state = ACTION_PHASE; // This should be auto after 5 secs, not pressing space
+	           //if (action == SPACE) state = ACTION_PHASE; // This should be auto after 5 secs, not pressing space
+	           if (count == 65) state  = ACTION_PHASE;
 	           if (m1_hit == 1) begin
 	               draw_m1 = 0;
 	           end
@@ -257,7 +266,72 @@ module vga_test
 	       end
 	    endcase
 	end
-	
+	//640x480
+	Pixel_On_Text2 #(.displayText("Duai Kao Kang Orm Moo Kra TaH Group")) t0(
+                                clk,
+                                200, // text position.x (top left)
+                                150, // text position.y (top left)
+                                x, // current position.x
+                                y, // current position.y
+                                gname  // result, 1 if current pixel is on text, 0 otherwise
+    );
+	Pixel_On_Text2 #(.displayText("Niti Assavaplakorn        6031031221")) t1(
+                                clk,
+                                200, // text position.x (top left)
+                                250, // text position.y (top left)
+                                x, // current position.x
+                                y, // current position.y
+                                name1  // result, 1 if current pixel is on text, 0 otherwise
+    );
+    Pixel_On_Text2 #(.displayText("Tanawit Kritwongwiman     6031021021")) t2(
+                                clk,
+                                200, // text position.x (top left)
+                                300, // text position.y (top left)
+                                x, // current position.x
+                                y, // current position.y
+                                name2  // result, 1 if current pixel is on text, 0 otherwise
+    );
+    Pixel_On_Text2 #(.displayText("Natchapol Srisang         6031308121")) t3(
+                                clk,
+                                200, // text position.x (top left)
+                                350, // text position.y (top left)
+                                x, // current position.x
+                                y, // current position.y
+                                name3  // result, 1 if current pixel is on text, 0 otherwise
+    );
+    Pixel_On_Text2 #(.displayText("Thanadol Rungjitwaranon   6031018121")) t4(
+                                clk,
+                                200, // text position.x (top left)
+                                400, // text position.y (top left)
+                                x, // current position.x
+                                y, // current position.y
+                                name4  // result, 1 if current pixel is on text, 0 otherwise
+    );
+    Pixel_On_Text2 #(.displayText("Press ['space'] to fight.")) t5(
+                                clk,
+                                230, // text position.x (top left)
+                                430, // text position.y (top left)
+                                x, // current position.x
+                                y, // current position.y
+                                text_act  // result, 1 if current pixel is on text, 0 otherwise
+    );
+    Pixel_On_Text2 #(.displayText("Press ['space'] to skill check.")) t6(
+                                clk,
+                                200, // text position.x (top left)
+                                430, // text position.y (top left)
+                                x, // current position.x
+                                y, // current position.y
+                                text_skill  // result, 1 if current pixel is on text, 0 otherwise
+    );
+    Pixel_On_Text2 #(.displayText("Select monster to attack with ['A'] or ['D'] then press ['space'].")) t7(
+                                clk,
+                                70, // text position.x (top left)
+                                430, // text position.y (top left)
+                                x, // current position.x
+                                y, // current position.y
+                                text_select  // result, 1 if current pixel is on text, 0 otherwise
+    );
+    
 	// for game rendering
 	always @(posedge p_tick) begin
 	    // Default Background
@@ -275,10 +349,12 @@ module vga_test
 	    case(state)
 	       MAIN_SCREEN:
 	           begin
-	               rgb_reg = WHITE;
+	               if (gname||name1||name2||name3||name4) rgb_reg = BLACK;
+	               else rgb_reg = WHITE;	               
 	           end
 	       ACTION_PHASE:
 	           begin
+	               if (text_act) rgb_reg = WHITE;
 	           end
 	       EVADE_PHASE:
 	           begin
@@ -307,6 +383,11 @@ module vga_test
 	           if ( x >= moving_bar_x && x <= moving_bar_x + 10 &&
 	                y >= moving_bar_y && y <= moving_bar_y + 30 )
 	                rgb_reg = WHITE;
+	           if (text_skill) rgb_reg = WHITE;
+	           end
+	       SELECT_MONSTER_PHASE:
+	           begin
+	               if (text_select) rgb_reg = WHITE;
 	           end
 	    endcase
 	   
@@ -350,4 +431,15 @@ module vga_test
 	   
 	end
 	assign rgb = (video_on) ? rgb_reg : 12'b0;
+	
+	reg [6:0] count = 0;
+	
+	always @(posedge tclk[23]) begin
+	   if(state == EVADE_PHASE) begin
+	       count = count+1;
+	   end
+	   else count = 0;
+	end
 endmodule
+
+
