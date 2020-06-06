@@ -3,7 +3,7 @@
 <!--                                                         -->
 <!-- Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.   -->
 
-<Project Version="7" Minor="39" Path="C:/Users/60310312/Desktop/hardware-lab_game-project-master/game_project/game_project.xpr">
+<Project Version="7" Minor="39" Path="G:/Chula/Project/Hardware Project/game_project/game_project.xpr">
   <DefaultLaunch Dir="$PRUNDIR"/>
   <Configuration>
     <Option Name="Id" Val="cae5605c6f6b4b648183228c17aa1339"/>

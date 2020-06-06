@@ -185,8 +185,9 @@ module vga_test
     reg [9:0] moving_bar_x = 0, moving_bar_y = 280;
     reg [3:0] moving_bar_vx = 10;
     wire [9:0] damage_penalty;
-    absolute_value skill_check_error(moving_bar_x,target_bar_x,damage_penalty,clk);
-    
+    absolute_value skill_check_error(moving_bar_x,target_bar_x,damage_penalty,clk);   	
+	reg [6:0] count = 0;
+	
 	// register for Basys 3 12-bit RGB DAC 
 	reg [11:0] rgb_reg;
 	reg reset = 0;
@@ -223,8 +224,8 @@ module vga_test
 	       end
 	       
 	       SELECT_MONSTER_PHASE: begin
-	           if (action == LEFT && m1_hp > 0) selected_monster = 0;
-	           if (action == RIGHT && m2_hp > 0) selected_monster = 1;
+	           if (action == LEFT && m1_hp > 0 || m2_hp == 0) selected_monster = 0;
+	           if (action == RIGHT && m2_hp > 0 || m1_hp == 0) selected_monster = 1;
 	           if (action == SPACE) begin
 	               if (selected_monster == 0) begin
 	                   if(m1_hp > attack_damage) m1_hp = m1_hp - attack_damage;
@@ -259,17 +260,12 @@ module vga_test
 	           end
 	           
 	       end
-	       
-	       GAME_END_DEFEATED: begin
-	           if (action == SPACE) begin
-	           end
-	       end
 	    endcase
 	end
 	//640x480
-	Pixel_On_Text2 #(.displayText("Duai Kao Kang Orm Moo Kra TaH Group")) t0(
+	Pixel_On_Text2 #(.displayText("Duay Kao Duay Kang Orm Moo Kra TaH Group")) t0(
                                 clk,
-                                200, // text position.x (top left)
+                                170, // text position.x (top left)
                                 150, // text position.y (top left)
                                 x, // current position.x
                                 y, // current position.y
@@ -277,7 +273,7 @@ module vga_test
     );
 	Pixel_On_Text2 #(.displayText("Niti Assavaplakorn        6031031221")) t1(
                                 clk,
-                                200, // text position.x (top left)
+                                190, // text position.x (top left)
                                 250, // text position.y (top left)
                                 x, // current position.x
                                 y, // current position.y
@@ -285,7 +281,7 @@ module vga_test
     );
     Pixel_On_Text2 #(.displayText("Tanawit Kritwongwiman     6031021021")) t2(
                                 clk,
-                                200, // text position.x (top left)
+                                190, // text position.x (top left)
                                 300, // text position.y (top left)
                                 x, // current position.x
                                 y, // current position.y
@@ -293,7 +289,7 @@ module vga_test
     );
     Pixel_On_Text2 #(.displayText("Natchapol Srisang         6031308121")) t3(
                                 clk,
-                                200, // text position.x (top left)
+                                190, // text position.x (top left)
                                 350, // text position.y (top left)
                                 x, // current position.x
                                 y, // current position.y
@@ -301,7 +297,7 @@ module vga_test
     );
     Pixel_On_Text2 #(.displayText("Thanadol Rungjitwaranon   6031018121")) t4(
                                 clk,
-                                200, // text position.x (top left)
+                                190, // text position.x (top left)
                                 400, // text position.y (top left)
                                 x, // current position.x
                                 y, // current position.y
@@ -310,7 +306,7 @@ module vga_test
     Pixel_On_Text2 #(.displayText("Press ['space'] to fight.")) t5(
                                 clk,
                                 230, // text position.x (top left)
-                                430, // text position.y (top left)
+                                440, // text position.y (top left)
                                 x, // current position.x
                                 y, // current position.y
                                 text_act  // result, 1 if current pixel is on text, 0 otherwise
@@ -318,18 +314,49 @@ module vga_test
     Pixel_On_Text2 #(.displayText("Press ['space'] to skill check.")) t6(
                                 clk,
                                 200, // text position.x (top left)
-                                430, // text position.y (top left)
+                                440, // text position.y (top left)
                                 x, // current position.x
                                 y, // current position.y
                                 text_skill  // result, 1 if current pixel is on text, 0 otherwise
     );
     Pixel_On_Text2 #(.displayText("Select monster to attack with ['A'] or ['D'] then press ['space'].")) t7(
                                 clk,
-                                70, // text position.x (top left)
-                                430, // text position.y (top left)
+                                50, // text position.x (top left)
+                                440, // text position.y (top left)
                                 x, // current position.x
                                 y, // current position.y
                                 text_select  // result, 1 if current pixel is on text, 0 otherwise
+    );
+    Pixel_On_Text2 #(.displayText("FIGHT")) t8(
+                                clk,
+                                30, // text position.x (top left)
+                                400, // text position.y (top left)
+                                x, // current position.x
+                                y, // current position.y
+                                text_fight  // result, 1 if current pixel is on text, 0 otherwise
+    );Pixel_On_Text2 #(.displayText("Green           Cyan")) t9(
+                                clk,
+                                30, // text position.x (top left)
+                                400, // text position.y (top left)
+                                x, // current position.x
+                                y, // current position.y
+                                text_green_cyan  // result, 1 if current pixel is on text, 0 otherwise
+    );
+    Pixel_On_Text2 #(.displayText("You Won.")) t10(
+                                clk,
+                                300, // text position.x (top left)
+                                150, // text position.y (top left)
+                                x, // current position.x
+                                y, // current position.y
+                                text_won  // result, 1 if current pixel is on text, 0 otherwise
+    );
+    Pixel_On_Text2 #(.displayText("You Lose.")) t11(
+                                clk,
+                                300, // text position.x (top left)
+                                150, // text position.y (top left)
+                                x, // current position.x
+                                y, // current position.y
+                                text_lose // result, 1 if current pixel is on text, 0 otherwise
     );
     
 	// for game rendering
@@ -354,7 +381,8 @@ module vga_test
 	           end
 	       ACTION_PHASE:
 	           begin
-	               if (text_act) rgb_reg = WHITE;
+	               if (text_act || text_fight) rgb_reg = WHITE;
+	               if ( (x - 15)**2 + (y - 405)**2 <= 100 ) rgb_reg = RED;
 	           end
 	       EVADE_PHASE:
 	           begin
@@ -367,12 +395,13 @@ module vga_test
 	           if ( (y == 40 || y == 240) && ( x >= 220 && x <= 420 ) )
 	               rgb_reg = WHITE;
 	           // monster 1 bullet (square shape)
-	           if ( draw_m1 == 1 &&
+	           if ( draw_m1 == 1 && m1_hp > 0 &&
 	                x >= m1_x - 3 && x <= m1_x + 3 && 
 	                y >= m1_y - 3 && y <= m1_y + 3 )
 	               rgb_reg = GREEN;
 	           // monster 2 bullet (circle shape)
-	           if ( draw_m2 == 1 && (x - m2_x)**2 + (y - m2_y)**2 <= 4**2 )
+	           if ( draw_m2 == 1 && m2_hp > 0 &&
+	               (x - m2_x)**2 + (y - m2_y)**2 <= 4**2 )
 	               rgb_reg = CYAN;
 	           end
 	       SKILL_CHECK_PHASE:
@@ -387,7 +416,17 @@ module vga_test
 	           end
 	       SELECT_MONSTER_PHASE:
 	           begin
-	               if (text_select) rgb_reg = WHITE;
+	               if (text_select || text_green_cyan) rgb_reg = WHITE;
+	               if ( selected_monster == 0 && (x - 15)**2 + (y - 405)**2 <= 100 ) rgb_reg = RED;
+	               if ( selected_monster == 1 && (x - 140)**2 + (y - 405)**2 <= 100 ) rgb_reg = RED;
+	           end
+	       GAME_END_VICTORY: 
+	           begin
+	               if (text_won) rgb_reg = WHITE;
+	           end
+	       GAME_END_DEFEATED: 
+	           begin
+	               if (text_lose) rgb_reg = WHITE;
 	           end
 	    endcase
 	   
@@ -431,8 +470,6 @@ module vga_test
 	   
 	end
 	assign rgb = (video_on) ? rgb_reg : 12'b0;
-	
-	reg [6:0] count = 0;
 	
 	always @(posedge tclk[23]) begin
 	   if(state == EVADE_PHASE) begin
